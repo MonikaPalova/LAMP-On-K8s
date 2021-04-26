@@ -26,6 +26,6 @@ spec:
     spec:
       containers:
       - name: php-apache
-        image: tempaccountforweb/demo:1.0
+        image: mpalova/demo-php-application:latest
         ports:
         - containerPort: 80
