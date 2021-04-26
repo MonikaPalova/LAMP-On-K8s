@@ -69,14 +69,6 @@ code {
   border: 2px #afadad solid;
 }
 
-embed {
-  background-color: #fff6a65e;
-  border: solid #9e9c76 3px;
-  padding: 1rem;
-  margin: 1em;
-  border-radius: 5px;
-}
-
 mark {
   background-color: #dcd9d9;
   padding-left: 1rem;
@@ -90,6 +82,17 @@ figure {
   align-items: center;
 }
 
+embed {
+  background-color: #fff6a65e;
+  border: solid #9e9c76 3px;
+  padding: 20px;
+  border-radius: 5px;
+}
+
+figure > * {
+  margin:10px;
+}
+
 ul {
   display: flex;
   flex-direction: column;
@@ -101,7 +104,7 @@ main a {
 
 footer a {
   text-decoration: none;
-  color: #422309;
+  color: #4c2709;
 }
 
 a:target {
@@ -133,8 +136,13 @@ screen and (max-width: 900px) {
     display: none;
   }
 
-  main {
+  main, footer {
     width: 92%;
     margin-left: 4%;
+    overflow-x: scroll;
+  }
+
+  figure {
+    align-items: flex-start;
   }
 }

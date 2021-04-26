@@ -9,18 +9,11 @@
   <script src="./javascript/referat.js"></script>
 </head>
 
-<body>
+<body onload="onInit()">
   <header>
     <h1>Стартиране на Lamp приложение посредством Kubernetes</h1>
   </header>
   <nav>
-    <a href="#introduction">Въведение</a>
-    <a href="#prerequisites">Предпоставки</a>
-    <a href="#mysql-setup">Стартиране на MySQL чрез kubectl</a>
-    <a href="#webserver-setup">Стартиране на Apache сървър чрез kubectl</a>
-    <a href="#build-app-image">(По желание) Създаване на локален Docker image за приложение, използващо PHP и MySQL</a>
-    <a href="#conclusion">Заключение</a>
-    <a href="#sources">Източници</a>
   </nav>
   <main>
     <section id="introduction">
@@ -51,7 +44,10 @@
       <p>След като изпише, че са създадени, съответните сикрети стават валидни в клъстъра и могат да бъдат използвани
         във всички единици в него.</p>
       <p>Това е съдържанието на mysql-secret.yaml<sup><a href="#src-6">[6]</a></sup> файла, който използваме:</p>
-      <embed src="./yaml/mysql-secret.yaml" width="400" height="140" />
+      <figure>
+        <embed src="./yaml/mysql-secret.yaml" width="400" height="150" />
+        <figcaption>Код 1. Използваният mysql-secret.yaml файл<sup><a href="#src-6">[6]</a></sup></figcaption>
+      </figure>
       <p>Сикретът е от тип Opaque - това е стандартния тип и дори да не се обозначи в yaml файла, той ще бъде използван.
         Сикретите от този тип се приемат за тайни на потребителя, които са напълно случайни и не е задължително да бъдат преизползвани
         на конкретно място.</p>
@@ -69,7 +65,10 @@
       </ul>
       <p>За да създадем storage-a трябва да изпълним командата:<code>kubectl create -f mysql-pv.yaml</code></p>
       <p>Това е съдържанието на mysql-pv.yaml<sup><a href="#src-6">[6]</a></sup> файла, който използваме:</p>
-      <embed src="yaml/mysql-pv.yaml" width="400" height="420" />
+      <figure>
+        <embed src="yaml/mysql-pv.yaml" width="400" height="460" />
+        <figcaption>Код 2. Използваният mysql-pv.yaml файл<sup><a href="#src-6">[6]</a></sup></figcaption>
+      </figure>
       <p>Създадените обекти биват 2, чиито дефиниции са разделени с "---". Първият е нашето <abbr title="PersistentVolume">PV</abbr>, а вторият нашето <abbr title="PersistentVolumeClaim">PVC</abbr>.
       <p>от <mark>storage: 1Gi</mark> и в двете дефиниции можем да видим, че се заделя 1гб памет и също толкова се изисква от claim-a.</p>
       <p><mark> storageClassName: manual</mark></p>
@@ -101,11 +100,14 @@
       <p>За да създадем обектите:<code>kubectl create -f mysql-deployment.yaml</code></p>
       <p>След като изпише, че обектите са създадени, може с командата <code>kubectl get all</code> да проследите кога ще е приключило същинското стартиране.</p>
       <figure>
-        <img src="./img/117_01.png" alt="'kubectl get all' result" width="1000">
+        <img src="./img/117_01.png" alt="'kubectl get all' result" width="900">
         <figcaption id="fig1">Фигура 1. Резултат от командата "kubectl get all".</figcaption>
       </figure>
       <p>Това е съдържанието на mysql-deployment.yaml<sup><a href="#src-6">[6]</a></sup> файла, който използваме:</p>
-      <embed src="yaml/mysql-deployment.yaml" width="400" height="680" />
+      <figure>
+        <embed src="yaml/mysql-deployment.yaml" width="400" height="730" />
+        <figcaption>Код 3. Използванията mysql-deployment.yaml файл<sup><a href="#src-6">[6]</a></sup></figcaption>
+      </figure>
       <p>Виждат се дефинициите на двата обекта mysql-service и mysql-deployment.</p>
       <p>mysql-service - селектира всички подове, които имат label-а "app=mysql" и са на порт 3306.
         Pod-овете ще бъдат достъпни на порт 3306, заради <mark>port:3306</mark>. Понеже в .spec.ports не е зададен targetPort
@@ -131,7 +133,10 @@
         <code>kubectl create -f webserver-deployment.yaml</code>
       </p>
       <p>Това е съдържанието на webserver-deployment.yaml<sup><a href="#src-6">[6]</a></sup> файла, който използваме:</p>
-      <embed src="yaml/webserver-deployment.yaml" width="400" height="500" />
+      <figure>
+        <embed src="yaml/webserver-deployment.yaml" width="400" height="550" />
+        <figcaption>Код 4. Използваният webserver-deployment.yaml файл<sup><a href="#src-6">[6]</a></sup></figcaption>
+      </figure>
       <p>Нека разгледаме дефинициите на двата обекта, които са нужни: webserver-service и webserver-deployment.</p>
       <p>webserver-service e Service от тип LoadBalancer, който слуша на порт 80 и препраща към порт 80. Pod-овете, който препраща са тези с label "app=php".
         Това, че е от тип LoadBalancer означава, че автоматично се създават два Service-a - един от тип ClusterIP и един от тип NodePort.
@@ -160,7 +165,7 @@
       <p>Dockerfile-a съдържа инструкциите за създаването на Docker image-a.
         Това е съдържанието на Dockerfile-a<sup><a href="#src-6">[6]</a></sup>, който е използван за mpalova/demo-php-application:latest:</p>
       <figure>
-        <img src="./img/117_02.png" alt="Dockerfile for custom app" width="1000">
+        <img src="./img/117_02.png" alt="Dockerfile for custom app" width="900">
         <figcaption id="fig2">Фигура 2. Dockerfile на демо приложение.</figcaption>
       </figure>
       <p> Сега нека разгледаме и част от съдържанието на демо приложението, за да получите представа
@@ -178,13 +183,13 @@
         Ако за първи път отваряме нашето приложение след стартирането му, ще се създаде база данни с име "sample_lamp_app"
         и след това в нея ще се създаде таблица USERS. При повторно пускане на приложението ни, ще се използват вече създадените.</p>
       <figure>
-        <img src="./img/117_04.png" alt="MySQL setup the database" width="1200">
+        <img src="./img/117_04.png" alt="MySQL setup the database" width="600">
         <figcaption id="fig4">Фигура 4. Скрипт за създаване на базата.</figcaption>
       </figure>
       <p>Съдържанието на другите файлове ми се струва, че не е по нашата тема и няма да ги разглеждаме.
         Със сигурност има какво повече да се желае от тях.</p>
       <p>След като вече сте написали вашето приложение и всичко е готово, остава само да създадете своя docker image.
-        За целта, отидете в директорията, която съдържа src и Dockerfile</p>
+        За целта, отидете в директорията, която съдържа src и Dockerfile.</p>
       <p>Ако искате да го ползвате локално, без да го качвате никъде, изпълнете командата:</p>
       <code>docker build -t '&lt;image-name&gt;:&lt;tag-name&gt;' .</code>
       <p>Ако искате вашият image да бъде достъпен и в Docker Hub, ще ви е нужен акаунт там.
