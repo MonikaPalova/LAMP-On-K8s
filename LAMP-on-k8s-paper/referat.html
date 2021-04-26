@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="bg">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+  <title>LAMP + K8s</title>
+  <link rel="stylesheet" href="./css/referat.css">
+  <script src="./javascript/referat.js"></script>
+</head>
+
+<body>
+  <header>
+    <h1>Стартиране на Lamp приложение посредством Kubernetes</h1>
+  </header>
+  <nav>
+    <a href="#introduction">Въведение</a>
+    <a href="#prerequisites">Предпоставки</a>
+    <a href="#mysql-setup">Стартиране на MySQL чрез kubectl</a>
+    <a href="#webserver-setup">Стартиране на Apache сървър чрез kubectl</a>
+    <a href="#build-app-image">(По желание) Създаване на локален Docker image за приложение, използващо PHP и MySQL</a>
+    <a href="#conclusion">Заключение</a>
+    <a href="#sources">Източници</a>
+  </nav>
+  <main>
+    <section id="introduction">
+      <h2>Въведение</h2>
+      <p>LAMP е съвкупност от софтуерни продукти, чиято цел е да предостави всичко нужно за функционирането на едно уеб приложение.
+        Linux, Apache, MySQL и PHP в съвкупност са достатъчни за да бъде използвано едно приложение, което е базирано на PHP и използва MySQL.
+        Този реферат цели да покаже как можем да стартираме LAMP приложение, като средата ни се намира на Кубернетис клъстър.
+      </p>
+    </section>
+    <section id="prerequisites">
+      <h2>Предпоставки</h2>
+      <p>За да изпълните долуописаните стъпки трябва да:</p>
+      <ul>
+        <li>Имате локална Linux/Unix среда</li>
+        <li>Имате инсталиран Docker desktop и сте стартирали single-node Kubernetes Cluster (<a href="https://birthday.play-with-docker.com/kubernetes-docker-desktop/" target="_blank">Ето как</a>)(до стъпка 3)</li>
+      </ul>
+      <p>Не са нужни особени познания за Docker и Kubernetes, тъй като нужната информация
+        ще бъде дадена в процеса на изпълнение на стъпките. При описанието на yaml файловете някои редове ще бъдат пропускани,
+        тъй като са стандартни и са описани в Кубернетис Документацията<sup><a href="#src-2">[2]</a></sup>
+    </section>
+    <section id="mysql-setup">
+      <h2>Стартиране на MySQL чрез kubectl</h2>
+      <h3>Създаване на Secret с паролата за MySQL обекта в K8s</h3>
+      <p>За да бъде защитена нашата база, ще създадем Kubernetes Secret (Сикрет), в който ще запишем паролата за свързване.
+        Много по-сигурно е да се пазят конфиденциални данни в сикрети, отколкото да бъдат директно записани в
+        конфигурационния файл на обекта. Също така, сикретите могат да бъдат преизползвани</p>
+      <p>За да създадем сикрета:<code>kubectl create -f mysql-secret.yaml</code></p>
+      <p>След като изпише, че са създадени, съответните сикрети стават валидни в клъстъра и могат да бъдат използвани
+        във всички единици в него.</p>
+      <p>Това е съдържанието на mysql-secret.yaml<sup><a href="#src-6">[6]</a></sup> файла, който използваме:</p>
+      <embed src="./yaml/mysql-secret.yaml" width="400" height="140" />
+      <p>Сикретът е от тип Opaque - това е стандартния тип и дори да не се обозначи в yaml файла, той ще бъде използван.
+        Сикретите от този тип се приемат за тайни на потребителя, които са напълно случайни и не е задължително да бъдат преизползвани
+        на конкретно място.</p>
+      <p><mark>password: bXlzcWwtcGFzcw==</mark> съдържа паролата "mysql-pass", но с base64 encoding.</p>
+      Можете да получите стойността и като изпълните командата: <code>echo -n 'mysql-pass' | base64</code>
+      Паролата може да бъде променена по ваш избор. На ниво password може да добавите и други променливи по ваше осмотрение.</p>
+      <h3>Създаване на Storage за MySQL обекта в K8s</h3>
+      <p>За да може да се запазва информацията, която записваме в базата за постоянно, ще са ни нужни
+        два други типа обекти, които Кубернетис предлага. Това са:</p>
+      <ul>
+        <li><dfn id="PersistentVolume">PersistentVolume</dfn> (<abbr title="PersistentVolume">PV</abbr>) - парче памет в клъстъра, което се заделя.
+          То е ресурс в клъстъра, който може да бъде ползван от обектите.</li>
+        <li><dfn id="PersistentVolumeClaim">PersistentVolumeClaim</dfn> (<abbr title="PersistentVolumeClaim">PVC</abbr>) - това е заявка за памет от Deployment-a. (за него по-късно)
+          Тя консумира PV ресурси, като може да декларира размер и начин за достъп до тях.</li>
+      </ul>
+      <p>За да създадем storage-a трябва да изпълним командата:<code>kubectl create -f mysql-pv.yaml</code></p>
+      <p>Това е съдържанието на mysql-pv.yaml<sup><a href="#src-6">[6]</a></sup> файла, който използваме:</p>
+      <embed src="yaml/mysql-pv.yaml" width="400" height="420" />
+      <p>Създадените обекти биват 2, чиито дефиниции са разделени с "---". Първият е нашето <abbr title="PersistentVolume">PV</abbr>, а вторият нашето <abbr title="PersistentVolumeClaim">PVC</abbr>.
+      <p>от <mark>storage: 1Gi</mark> и в двете дефиниции можем да видим, че се заделя 1гб памет и също толкова се изисква от claim-a.</p>
+      <p><mark> storageClassName: manual</mark></p>
+      <p>
+      <p>на обектите е зададен access mode от вида <mark>ReadWriteOnce</mark> и това ни декларира, че въпросната памет ще бъде запазена и използвана точно от един Node на клъстъра.
+        В нашия случай, използваме single-node cluster, който ни е предоставен от Docker Desktop. Но клъстърите могат да имат повече от 1 node-а.
+      </p>
+      <p><mark>hostPath</mark> променливата в PV обекта показва пътя в клъстъра, на който ще се намира заделената памет</p>
+      <p>
+      <h3>Създаване на финалния MySQL обект, използващ описаните до сега</h3>
+      <p>За целта ще създадем два Кубернетис обекта. Един от тип Service и един от тип Deployment.</p>
+      <ul>
+        <li><dfn id="Service">Service</dfn> - абстракция, която логически свързва няколко Pod-a и ни предоставя начин да ги достъпим.
+          Обичайно Pod-овете са таргетирани чрез label selector. Тъй като Pod-овете често биват изтривани и пресъздавани без на нас да ни е известно, не можем да си гарантираме, че ако се опитаме да достъпим
+          един Pod в даден момент, той ще съществува. Затова, създаваме Service-и, които селектират всички Pod-ове с някакъв label и ни предоставят ip address и port, на който гарантират, че ако има активен Pod с този label,
+          можем да го достъпим на тях.
+          Service-a може да пренасочи Pod-овете към друг порт в клъстъра или да ги насочи извън него.</li>
+        <li><dfn id="Deployment">Deployment</dfn> - това е начин да се пусне приложението в клъстъра. Deployment-a декларира какво е нужно, за да работи приложението както искаме.
+          Kubernetes скрито от нас поддържа deployment-a. Най-често deployment-a създава ReplicaSet, който поддържа определен брой Pod-ове. Хубавото на deployment-a е че той сам създава
+          нужните му обекти и няма нужда да бъдат създавани и конфигурирани на ръка нито Pod-ове, нито ReplicaSet-ове. В него ние описваме откъде да вземе информацията за приложението ни и по какъв
+          начин да го ъпдейтва и нататък се оправя сам.</li>
+        <li><dfn id="ReplicaSet">ReplicaSet</dfn> - целта на ReplicaSet-a е да поддържа множество от определен брой идентични Pod-ове активни постоянно.</li>
+        <li><dfn id="Pod">Pod</dfn> - Pod-овете са най-малките единици, които можем да стартираме и управляваме в Кубернетис. Pod-a е група от контейнери, съдържанието на които се дефинира при неговото създаване.
+          Обособяват се имената на контейнерите, както и image-a, който ще ползват. По default Kubernetes проверява дали имаме image-a локално и след това в публичния регистър на Docker (Docker Hub).
+          Разбира се, може допълнително да се дефинира откъде точно да се вземе image-a.</li>
+        <li><dfn id="Container">Container</dfn> - Контейнерът представлява стартиран container image. Container image е нещо като архив, което енкапсулира в себе си
+          едно приложение и всичкия външен софтуер, който му е нужен, за да функционира правилно. Най-често от готово приложение се създава image, който се качва в регистър (напр. Docker Hub).</li>
+      </ul>
+      <p>За да създадем обектите:<code>kubectl create -f mysql-deployment.yaml</code></p>
+      <p>След като изпише, че обектите са създадени, може с командата <code>kubectl get all</code> да проследите кога ще е приключило същинското стартиране.</p>
+      <figure>
+        <img src="./img/117_01.png" alt="'kubectl get all' result" width="1000">
+        <figcaption id="fig1">Фигура 1. Резултат от командата "kubectl get all".</figcaption>
+      </figure>
+      <p>Това е съдържанието на mysql-deployment.yaml<sup><a href="#src-6">[6]</a></sup> файла, който използваме:</p>
+      <embed src="yaml/mysql-deployment.yaml" width="400" height="680" />
+      <p>Виждат се дефинициите на двата обекта mysql-service и mysql-deployment.</p>
+      <p>mysql-service - селектира всички подове, които имат label-а "app=mysql" и са на порт 3306.
+        Pod-овете ще бъдат достъпни на порт 3306, заради <mark>port:3306</mark>. Понеже в .spec.ports не е зададен targetPort
+        на Service-a той по default слуша на порт 3306. Т.е. или нашият deployment задължително трябва да създава контейнерите на Pod-овете си
+        на порт 3306, или да сетнем тук targetPort да е равен на containerPort в deployment-a.</p>
+      <p><mark>clusterIP: None</mark> прави така, че service-a да няма вътрешен ip address за клъстъра, чрез който да бъде достъпен. В такъв случай при създаването на Servicе-а се дефинира endpoint,
+        на който са достъпни селектираните Pod-ове.</p>
+      <p>mysql-deployment:</p>
+      <p>в .spec.selector виждаме, че за matchLabels е даден label-a "app=mysql"; това означава, че този Deployment
+        ще менажира Pod-овете с този label.</p>
+      <p>template описва как ще "изглеждат" Pod-овете на нашия Deployment. Виждаме, че им е добавен label-a "app=mysql" и имат spec(спецификации). В containers са описани контейнерите, които са в Pod-a.
+        В нашия случай контейнерът е само един. </p>
+      <p>Той е създаден като се изтегля(pull) docker image-a "mysql:5.6" и се стартира като контейнер с име "mysql". В env сме добавили променливи на средата. За да се стартира mysql image-a
+        трябва задължително да му се зададе MYSQL_ROOT_PASSWORD, която да се използва за парола на root потребителя на базата<sup><a href="#src-4">[4]</a></sup>.
+        Правим референция към сикрета с име mysql-secret, който създадохме в началото, и изпозлваме "password".
+        Стартираме контейнера на порт 3306, за да бъдат успешно достъпени от Service-a.
+      <p>volumeMounts е storage-a на нашия контейнер и се казва mysql-pv-storage.</p>
+      <p>Във volumes виждаме, че за mysql-pv-storage ще използва PVC-а, който създадохме по-рано с име mysql-pv-claim.</p>
+    </section>
+    <section id="webserver-setup">
+      <h2>Стартиране на Apache сървър чрез kubectl</h2>
+      <p>За да стартирате php application-a си на apache сървър на клъстъра си, трябва да изпълните командата:
+        <code>kubectl create -f webserver-deployment.yaml</code>
+      </p>
+      <p>Това е съдържанието на webserver-deployment.yaml<sup><a href="#src-6">[6]</a></sup> файла, който използваме:</p>
+      <embed src="yaml/webserver-deployment.yaml" width="400" height="500" />
+      <p>Нека разгледаме дефинициите на двата обекта, които са нужни: webserver-service и webserver-deployment.</p>
+      <p>webserver-service e Service от тип LoadBalancer, който слуша на порт 80 и препраща към порт 80. Pod-овете, който препраща са тези с label "app=php".
+        Това, че е от тип LoadBalancer означава, че автоматично се създават два Service-a - един от тип ClusterIP и един от тип NodePort.
+        ClusterIP дава на service-a ip address, който е вътрешен за клъстъра и се използва, за да се случи load balancing-a между pod-овете (коя заявка към кой Pod да отиде).
+        NodePort ни позволява да достъпим Pod-овете извън клъстъра на порт-а дефиниран от нас (в случая 80). Той се свързва с ClusterIP Service-a чрез неговия port и изпълнява заявките, които е получил чрез него.
+        Сега ще бъде пуснат на localhost, но всъщност може да бъде и на други адреси. (напр. с ingress<sup><a href="#src-5">[5]</a></sup>)
+      <p>webserver-deployment ще създаде три Pod-a. Те ще имат label "app=php" и порта на контейнера им ще е 80. Съответно ще бъдат открити от webserver-service.</p>
+      <p><mark>image: mpalova/demo-php-application:latest</mark> задава image-a, който 3те контейнера ще ползват. В момента той сочи към мой личен image на приложение.</p>
+      <p>Ако сте решили да стартирате свое собствено приложение, както е указано в
+        <a href="#build-app-image">(По желание) Създаване на локален Docker image за приложение, използващо PHP и MySQL</a> го променете.
+      </p>
+      </p>
+    </section>
+    <section id="build-app-image">
+      <h2>(По желание) Създаване на локален Docker image за приложение, използващо PHP и MySQL</h2>
+      <p>Ако искате да качите свое php приложение в клъстъра си, ще е нужно да си направите docker image.
+        За целта ще ви е нужен Docker Hub акаунт, за да успеете да качите image-a и после да го използвате.
+        Разбира се, може да го създадете локално и да го използвате само вие.
+        Нужен ви е Dockerfile и директория src, в която да поставите приложението си.</p>
+      <p>За да бъде по-лесно разбирането на нещата, ще разгледаме моето приложение и неговото съдържание.
+        В самия реферат няма да добавям всички файлове,
+        за това препоръчвам да отворите и Git Hub Repo-то<sup><a href="#src-6">[6]</a></sup> паралелно.
+        Там е добавена автоматична конфигурация и всички промени във файловете се отразяват и в
+        Docker image-a в Docker Hub<sup><a href="#src-7">[7]</a></sup>.
+      <p>Нужни са ни две неща: Dockerfile и src директория.</p>
+      <p>Dockerfile-a съдържа инструкциите за създаването на Docker image-a.
+        Това е съдържанието на Dockerfile-a<sup><a href="#src-6">[6]</a></sup>, който е използван за mpalova/demo-php-application:latest:</p>
+      <figure>
+        <img src="./img/117_02.png" alt="Dockerfile for custom app" width="1000">
+        <figcaption id="fig2">Фигура 2. Dockerfile на демо приложение.</figcaption>
+      </figure>
+      <p> Сега нека разгледаме и част от съдържанието на демо приложението, за да получите представа
+        как да напишете свое. Съдържанието трябва да се намира в папка src</p>
+      <p>При отваряне на localhost:80, първо се отваря index.php<sup><a href="#src-6">[6]</a></sup> файла.
+        В началото чрез require_once се извикват два скрипта: mysql_connect.php и mysql_setup_table.php</p>
+      <p>Целта на mysql_connect.php скрипта е да създаде връзка към mysql базата, която конфигурирахме по-горе.
+        Както виждате за servername се използва името на Service обекта, а за парола се използва тази, която
+        зададохме в Secret-a.
+      <figure>
+        <img src="./img/117_03.png" alt="Connect to the deployed MySQL" width="600">
+        <figcaption id="fig3">Фигура 3. Скрипт за свързване към стартирания в клъстъра MySQL.</figcaption>
+      </figure>
+      <p>След това се извиква mysql_setup_table.php скрипта, който е за създаване на базата и на таблицата ни.
+        Ако за първи път отваряме нашето приложение след стартирането му, ще се създаде база данни с име "sample_lamp_app"
+        и след това в нея ще се създаде таблица USERS. При повторно пускане на приложението ни, ще се използват вече създадените.</p>
+      <figure>
+        <img src="./img/117_04.png" alt="MySQL setup the database" width="1200">
+        <figcaption id="fig4">Фигура 4. Скрипт за създаване на базата.</figcaption>
+      </figure>
+      <p>Съдържанието на другите файлове ми се струва, че не е по нашата тема и няма да ги разглеждаме.
+        Със сигурност има какво повече да се желае от тях.</p>
+      <p>След като вече сте написали вашето приложение и всичко е готово, остава само да създадете своя docker image.
+        За целта, отидете в директорията, която съдържа src и Dockerfile</p>
+      <p>Ако искате да го ползвате локално, без да го качвате никъде, изпълнете командата:</p>
+      <code>docker build -t '&lt;image-name&gt;:&lt;tag-name&gt;' .</code>
+      <p>Ако искате вашият image да бъде достъпен и в Docker Hub, ще ви е нужен акаунт там.
+        След това изпълнете командите:</p>
+      <code>docker build -t '&lt;docker-hub-account-name&gt;/&lt;image-name&gt;:&lt;tag-name&gt;' .</code>
+      <code>docker push '&lt;docker-hub-account-name&gt;/&lt;image-name&gt;'</code>
+    </section>
+    <section id="conclusion">
+      <h2>Заключение</h2>
+      <p>Ако всичко е наред, сега на localhost:80 имате стартирано LAMP приложение &#128516;</p>
+    </section>
+  </main>
+  <footer>
+    <section id="sources">
+      <h2>Източници</h2>
+      <ul>
+        <a id="src-1" href="http://docs.heptio.com/content/tutorials/lamp.html" target="=_blank">[1] Tutorial: Run a custom LAMP application on Kubernetes</a>
+        <a id="src-2" href="https://kubernetes.io/docs/home/" target="=_blank">[2] Kubernetes Documentation</a>
+        <a id="src-3" href="https://faun.pub/deploy-your-first-scaleable-php-mysql-web-application-in-kubernetes-33ed7ab66595" target="=_blank">[3] Deploy your first scaleable PHP/MySQL Web application in Kubernetes</a>
+        <a id="src-4" href="https://hub.docker.com/_/mysql" target="=_blank">[4] MySQL image in Docker Hub</a>
+        <a id="src-5" href="https://kubernetes.io/docs/concepts/services-networking/ingress/" target="=_blank">[5] Kubernetes Documentation: Ingress</a>
+        <a id="src-6" href="https://github.com/MonikaPalova/LAMP-On-K8s" target="=_blank">[6] LAMP-On-k8s Github Repository</a>
+        <a id="src-7" href="https://hub.docker.com/r/mpalova/demo-php-application" target="=_blank">[7] Docker Image of Demo Application</a>
+        <ul>
+          <p><a id="get-back-to-paper" href="#" onclick="history.go(-1)"><i>Върнете се обратно до където бяхте</i></a></p>
+    </section>
+  </footer>
+</body>
+
+</html>

@@ -1,0 +1,140 @@
+body {
+  font-size: 20px;
+  font-family: Calibri;
+  background-color: #efef8852;
+  overflow-x: hidden;
+}
+
+header {
+  margin: 3%;
+  border-bottom: 3px black solid;
+  width: 100%;
+}
+
+nav {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: flex-start;
+  width: 17%;
+  height: 65%;
+  border-right: 3px dashed;
+  border-bottom: 3px solid;
+  border-color: #5f7570;
+  background-color: #03a9f43b;
+  font-size: 18px;
+  padding-top: 1rem;
+}
+
+nav a {
+  margin: 1rem 1rem 1rem 2rem;
+  text-decoration: none;
+  line-height: 20px;
+}
+
+nav a::before {
+  content: "→ ";
+}
+
+nav a:link {
+  color: black;
+}
+
+nav a:visited {
+  color: green;
+}
+
+nav a:active {
+  color: #1235f5;
+}
+
+main, footer {
+  position: relative;
+  display: flex;
+  width: 75%;
+  margin-left: 21%;
+  margin-right: 4%;
+  flex-direction: column;
+}
+
+code {
+  background-color: #dcd9d9;
+  display: block;
+  padding: 1rem;
+  position: relative;
+  padding-left: 3rem;
+  border-radius: 10px;
+  margin: 1em;
+  border: 2px #afadad solid;
+}
+
+embed {
+  background-color: #fff6a65e;
+  border: solid #9e9c76 3px;
+  padding: 1rem;
+  margin: 1em;
+  border-radius: 5px;
+}
+
+mark {
+  background-color: #dcd9d9;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-radius: 5px;
+}
+
+figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+ul {
+  display: flex;
+  flex-direction: column;
+}
+
+main a {
+  color: #63453b;
+}
+
+footer a {
+  text-decoration: none;
+  color: #422309;
+}
+
+a:target {
+  text-decoration: underline;
+}
+
+#get-back-to-paper {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+}
+
+@media screen and (max-height: 900px) {
+  nav {
+    padding-top: 20px;
+    padding-bottom: 0;
+  }
+
+  nav a {
+    line-height: 20px;
+    margin: 10px;
+  }
+}
+
+@media screen and (max-height: 900px) and (max-width: 1100px),
+screen and (max-height: 600px),
+screen and (max-width: 900px) {
+  nav {
+    display: none;
+  }
+
+  main {
+    width: 92%;
+    margin-left: 4%;
+  }
+}
